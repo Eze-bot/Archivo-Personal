@@ -1,6 +1,6 @@
 {
   "name": "Archivo Personal",
-  "short_name": "Archivo",
+  "short_name": "Visor Documentos",
   "description": "Visor personal de documentos: PDF, Word, Excel, TXT, CSV e imágenes.",
   "start_url": "./index.html",
   "scope": "./",
