@@ -1,4 +1,4 @@
-const CACHE = 'archivo-personal-v3';
+const CACHE = 'archivo-personal-v4';
 const SHELL = ['./', './index.html', './app.js', './manifest.json', './icon.png'];
 
 self.addEventListener('install', (e)=>{

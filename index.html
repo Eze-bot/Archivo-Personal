@@ -135,8 +135,8 @@
   .docview{background:#fff;color:#1a1a1a;max-width:760px;margin:0 auto;padding:36px 32px;
     font-family:Georgia,serif;line-height:1.55;box-shadow:0 0 24px rgba(0,0,0,.4);}
   .docview img{max-width:100%;}
-  .imgview{display:flex;align-items:center;justify-content:center;min-height:100%;padding:12px;}
-  .imgview img{max-width:100%;max-height:100%;object-fit:contain;}
+  .imgview{min-height:100%;padding:14px;text-align:center;}
+  .imgview img{max-width:100%;height:auto;display:inline-block;}
   .pdfpage{display:block;margin:12px auto;box-shadow:0 2px 14px rgba(0,0,0,.5);background:#fff;}
   .sheetwrap{padding:10px;}
   .sheettabs{display:flex;gap:4px;overflow-x:auto;padding:6px 6px 10px;background:var(--surface);
@@ -164,14 +164,18 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
 
   @media print{
+    html,body{height:auto !important;overflow:visible !important;}
+    #app{height:auto !important;display:block !important;}
     header,#fab,#library,.vheader,.searchbar{display:none !important;}
-    #viewer{position:static !important;}
-    #viewBody{overflow:visible !important;height:auto !important;background:#fff !important;}
+    #viewer{position:static !important;display:block !important;height:auto !important;inset:auto !important;}
+    #viewBody{position:static !important;overflow:visible !important;height:auto !important;
+      flex:none !important;background:#fff !important;}
     #docContent{zoom:1 !important;transform:none !important;}
     .txtview{color:#000;}
     .pdfpage, .docview, .imgview img, table.sheet{
       width:100% !important;max-width:100% !important;height:auto !important;box-shadow:none !important;
     }
+    .imgview img.zoomable-img{width:auto !important;}
     .docview{padding:0 !important;margin:0 !important;}
   }
 </style>
@@ -190,13 +194,13 @@
   <div id="library">
     <div class="empty" id="emptyState">
       <div class="glyph">⌸</div>
-      <p>Todavía no agregaste archivos.<br>Tocá el botón + para abrir PDF, Word, Excel, TXT, CSV o imágenes.</p>
+      <p>Todavía no agregaste archivos.<br>Tocá el botón + para abrir PDF, Word, Excel, TXT, CSV, imágenes y más.</p>
     </div>
     <div id="cardList"></div>
   </div>
 
   <input type="file" id="fileInput" multiple
-    accept=".pdf,.txt,.csv,.docx,.xlsx,.xls,.jpg,.jpeg,.png">
+    accept=".pdf,.txt,.csv,.tsv,.docx,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.md,.markdown,.log,.json,.xml">
   <button id="fab" title="Agregar archivo">+</button>
 
   <!-- Viewer overlay -->

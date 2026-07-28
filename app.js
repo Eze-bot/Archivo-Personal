@@ -73,8 +73,13 @@ function tag(ext){
   if(['doc','docx'].includes(ext)) return 'WORD';
   if(['xls','xlsx'].includes(ext)) return 'EXCEL';
   if(ext==='csv') return 'CSV';
+  if(ext==='tsv') return 'TSV';
   if(ext==='txt') return 'TXT';
-  if(['jpg','jpeg','png'].includes(ext)) return 'IMG';
+  if(['md','markdown'].includes(ext)) return 'MD';
+  if(ext==='log') return 'LOG';
+  if(ext==='json') return 'JSON';
+  if(ext==='xml') return 'XML';
+  if(['jpg','jpeg','png','gif','webp','bmp','svg'].includes(ext)) return 'IMG';
   return ext.toUpperCase();
 }
 let toastTimer;
@@ -180,9 +185,16 @@ function closeViewer(){
 /* ---------- Zoom ---------- */
 function setZoom(scale){
   zoomScale = Math.min(4, Math.max(0.4, scale));
-  const content = document.getElementById('docContent');
-  if(content) content.style.zoom = zoomScale;
   $('#zoomLevel').textContent = Math.round(zoomScale*100)+'%';
+  const content = document.getElementById('docContent');
+  if(!content) return;
+  const img = content.querySelector('img.zoomable-img');
+  if(img && img.dataset.naturalWidth){
+    img.style.maxWidth = 'none';
+    img.style.width = (parseFloat(img.dataset.naturalWidth) * zoomScale) + 'px';
+  } else {
+    content.style.zoom = zoomScale;
+  }
 }
 function resetZoom(){ zoomScale = 1; setZoom(1); }
 
@@ -192,12 +204,18 @@ $('#btnZoomFit').addEventListener('click', ()=>{
   const content = document.getElementById('docContent');
   const body = $('#viewBody');
   if(!content || !body) return;
-  const prevZoom = content.style.zoom;
-  content.style.zoom = 1; // medir tamaño natural
-  const naturalWidth = content.scrollWidth || content.offsetWidth;
-  content.style.zoom = prevZoom || 1;
-  if(!naturalWidth) return;
   const available = body.clientWidth - 24; // margen visual
+  const img = content.querySelector('img.zoomable-img');
+  let naturalWidth;
+  if(img && img.dataset.naturalWidth){
+    naturalWidth = parseFloat(img.dataset.naturalWidth);
+  } else {
+    const prevZoom = content.style.zoom;
+    content.style.zoom = 1; // medir tamaño natural
+    naturalWidth = content.scrollWidth || content.offsetWidth;
+    content.style.zoom = prevZoom || 1;
+  }
+  if(!naturalWidth) return;
   const fit = available / naturalWidth;
   setZoom(fit > 0 ? fit : 1);
 });
@@ -247,9 +265,11 @@ async function openViewer(f){
   try{
     if(f.ext==='pdf') await renderPDF(f);
     else if(f.ext==='docx') await renderDOCX(f);
-    else if(['xlsx','xls','csv'].includes(f.ext)) await renderSheet(f);
-    else if(f.ext==='txt') await renderTXT(f);
-    else if(['jpg','jpeg','png'].includes(f.ext)) await renderImage(f);
+    else if(['xlsx','xls'].includes(f.ext)) await renderSheet(f);
+    else if(f.ext==='csv') await renderSheet(f);
+    else if(f.ext==='tsv') await renderTSV(f);
+    else if(['txt','md','markdown','log','json','xml'].includes(f.ext)) await renderTXT(f);
+    else if(['jpg','jpeg','png','gif','webp','bmp','svg'].includes(f.ext)) await renderImage(f);
     else { body.innerHTML = `<div class="loading">Formato no compatible con el visor.</div>`; }
   }catch(err){
     console.error(err);
@@ -257,9 +277,12 @@ async function openViewer(f){
   }
 }
 
-/* ----- TXT ----- */
+/* ----- TXT / MD / LOG / JSON / XML (todos como texto plano) ----- */
 async function renderTXT(f){
-  const text = await f.blob.text();
+  let text = await f.blob.text();
+  if(f.ext==='json'){
+    try{ text = JSON.stringify(JSON.parse(text), null, 2); }catch(e){ /* si no es JSON válido, se muestra tal cual */ }
+  }
   const body = $('#viewBody');
   body.innerHTML = `<pre class="txtview" id="docContent"></pre>`;
   $('#docContent').textContent = text;
@@ -269,7 +292,20 @@ async function renderTXT(f){
 async function renderImage(f){
   const url = URL.createObjectURL(f.blob);
   const body = $('#viewBody');
-  body.innerHTML = `<div class="imgview"><img src="${url}" alt="${f.name}"></div>`;
+  body.innerHTML = `<div class="imgview" id="docContent"></div>`;
+  const container = document.getElementById('docContent');
+  const img = document.createElement('img');
+  img.className = 'zoomable-img';
+  img.alt = f.name;
+  img.src = url;
+  await new Promise((resolve)=>{
+    img.onload = ()=>{
+      img.dataset.naturalWidth = img.naturalWidth;
+      resolve();
+    };
+    img.onerror = resolve;
+  });
+  container.appendChild(img);
 }
 
 /* ----- DOCX (mammoth) ----- */
@@ -308,6 +344,20 @@ async function renderSheet(f){
     if(t) t.classList.add('sheet');
   }
   draw();
+}
+
+/* ----- TSV (tabla separada por tabulaciones) ----- */
+async function renderTSV(f){
+  const text = await f.blob.text();
+  const body = $('#viewBody');
+  const rows = text.replace(/\r/g,'').split('\n').filter(r=>r.length>0).map(r=>r.split('\t'));
+  const rowsHTML = rows.map((cells,i)=>
+    `<tr>${cells.map(c=>`<td>${escapeHTML(c)}</td>`).join('')}</tr>`
+  ).join('');
+  body.innerHTML = `<div class="sheetwrap"><table class="sheet" id="docContent">${rowsHTML}</table></div>`;
+}
+function escapeHTML(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 /* ----- PDF (pdf.js) con capa de texto para búsqueda ----- */
