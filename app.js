@@ -9,13 +9,17 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 /* ---------- IndexedDB muy simple ---------- */
 const DB_NAME = 'archivo-personal-db';
 const STORE = 'files';
+const INCOMING = 'incoming';
 function openDB(){
   return new Promise((res, rej)=>{
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, 2);
     req.onupgradeneeded = ()=>{
       const db = req.result;
       if(!db.objectStoreNames.contains(STORE)){
         db.createObjectStore(STORE, {keyPath:'id'});
+      }
+      if(!db.objectStoreNames.contains(INCOMING)){
+        db.createObjectStore(INCOMING, {keyPath:'id'});
       }
     };
     req.onsuccess = ()=>res(req.result);
@@ -54,6 +58,24 @@ async function dbClear(){
   return new Promise((res,rej)=>{
     const tx = db.transaction(STORE,'readwrite');
     tx.objectStore(STORE).clear();
+    tx.oncomplete = ()=>res();
+    tx.onerror = ()=>rej(tx.error);
+  });
+}
+async function dbGetAllIncoming(){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(INCOMING,'readonly');
+    const req = tx.objectStore(INCOMING).getAll();
+    req.onsuccess = ()=>res(req.result || []);
+    req.onerror = ()=>rej(req.error);
+  });
+}
+async function dbClearIncoming(){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(INCOMING,'readwrite');
+    tx.objectStore(INCOMING).clear();
     tx.oncomplete = ()=>res();
     tx.onerror = ()=>rej(tx.error);
   });
@@ -140,6 +162,32 @@ function renderLibrary(){
   renderLibrary();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  }
+
+  // ¿La app se abrió porque compartieron un archivo desde otra app?
+  if(location.search.includes('shared=1')){
+    try{
+      const incoming = await dbGetAllIncoming();
+      for(const item of incoming){
+        const rec = {
+          id: crypto.randomUUID(),
+          name: item.name,
+          ext: extOf(item.name),
+          size: item.blob.size,
+          date: Date.now(),
+          blob: item.blob
+        };
+        await dbPut(rec);
+        files.push(rec);
+      }
+      await dbClearIncoming();
+      if(incoming.length){
+        renderLibrary();
+        toast(incoming.length===1 ? 'Archivo recibido por Compartir' : incoming.length+' archivos recibidos por Compartir');
+      }
+    }catch(err){ console.error(err); }
+    // Limpiar el ?shared=1 de la barra de direcciones
+    history.replaceState(null, '', location.pathname);
   }
 })();
 
