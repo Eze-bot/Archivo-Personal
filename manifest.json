@@ -1,0 +1,15 @@
+{
+  "name": "Archivo Personal",
+  "short_name": "Archivo",
+  "description": "Visor personal de documentos: PDF, Word, Excel, TXT, CSV e imágenes.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#14171a",
+  "theme_color": "#14171a",
+  "icons": [
+    { "src": "icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

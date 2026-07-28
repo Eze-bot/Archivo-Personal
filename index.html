@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14171a">
+<title>Archivo Personal</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#14171a;
+    --surface:#1e2228;
+    --surface-2:#252a31;
+    --line:#33393f;
+    --text:#e8e6e1;
+    --text-dim:#9aa0a6;
+    --accent:#c9a227;
+    --accent-dim:#8a7220;
+    --danger:#c25b4a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:'IBM Plex Serif',Georgia,serif;-webkit-tap-highlight-color:transparent;}
+  ::selection{background:var(--accent);color:#14171a;}
+
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* App shell */
+  #app{display:flex;flex-direction:column;height:100vh;height:100dvh;}
+
+  header{
+    padding:18px 16px 14px;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:linear-gradient(180deg,#181b1f,#14171a);
+  }
+  .brand{display:flex;flex-direction:column;line-height:1.1;}
+  .brand .stamp{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.18em;
+    color:var(--accent);text-transform:uppercase;margin-bottom:3px;}
+  .brand h1{font-size:19px;margin:0;font-weight:600;letter-spacing:.01em;}
+
+  .btn{
+    background:var(--surface-2);color:var(--text);border:1px solid var(--line);
+    border-radius:3px;padding:9px 14px;font-family:'IBM Plex Mono';font-size:12px;
+    letter-spacing:.03em;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+    transition:border-color .15s, background .15s;
+  }
+  .btn:hover{border-color:var(--accent-dim);}
+  .btn:active{background:var(--surface);}
+  .btn.primary{background:var(--accent);color:#181305;border-color:var(--accent);font-weight:600;}
+  .btn.primary:hover{background:#dcb236;}
+  .btn.ghost{background:transparent;}
+  .btn:disabled{opacity:.35;cursor:not-allowed;}
+
+  #fileInput{display:none;}
+
+  /* Library view */
+  #library{flex:1;overflow-y:auto;padding:14px 16px 90px;}
+  .empty{
+    margin-top:18vh;text-align:center;color:var(--text-dim);
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+  }
+  .empty .glyph{font-size:34px;color:var(--accent-dim);font-family:'IBM Plex Mono';}
+  .empty p{max-width:280px;margin:0;font-size:14px;line-height:1.5;}
+
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:4px;
+    padding:12px 14px;margin-bottom:9px;display:flex;align-items:center;gap:12px;
+    cursor:pointer;position:relative;
+  }
+  .card:active{background:var(--surface-2);}
+  .card .tag{
+    font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.08em;color:var(--accent);
+    border:1px solid var(--accent-dim);border-radius:2px;padding:3px 6px;
+    text-transform:uppercase;flex-shrink:0;min-width:40px;text-align:center;
+  }
+  .card .info{flex:1;min-width:0;}
+  .card .name{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card .meta{font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-dim);margin-top:3px;}
+  .card .del{color:var(--text-dim);font-family:'IBM Plex Mono';font-size:16px;padding:4px 6px;flex-shrink:0;}
+  .card .del:active{color:var(--danger);}
+
+  /* Add button (fab) */
+  #fab{
+    position:fixed;bottom:22px;right:18px;z-index:20;
+    width:56px;height:56px;border-radius:50%;background:var(--accent);color:#181305;
+    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;
+    border:none;box-shadow:0 6px 18px rgba(0,0,0,.4);cursor:pointer;
+  }
+
+  /* Viewer */
+  #viewer{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;z-index:30;}
+  #viewer.open{display:flex;}
+  .vheader{
+    padding:12px 12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;background:var(--surface);flex-wrap:wrap;
+  }
+  .vheader .vname{flex:1;min-width:120px;font-size:14px;font-weight:600;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;}
+  .searchbar{
+    display:flex;align-items:center;gap:6px;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:3px;padding:5px 8px;flex:1 1 100%;
+    order:5;margin-top:6px;
+  }
+  .searchbar input{
+    flex:1;background:transparent;border:none;outline:none;color:var(--text);
+    font-family:'IBM Plex Mono';font-size:13px;
+  }
+  .searchbar .count{font-family:'IBM Plex Mono';font-size:11px;color:var(--text-dim);white-space:nowrap;}
+  .searchbar .navbtn{color:var(--text-dim);font-family:'IBM Plex Mono';font-size:13px;padding:2px 6px;cursor:pointer;}
+  .searchbar .navbtn:active{color:var(--accent);}
+
+  #viewBody{flex:1;overflow:auto;background:#0f1113;-webkit-overflow-scrolling:touch;}
+  #viewBody.pad{padding:16px;}
+
+  .txtview{white-space:pre-wrap;word-wrap:break-word;font-family:'IBM Plex Mono';
+    font-size:13px;line-height:1.6;padding:18px;color:var(--text);margin:0;}
+  .docview{background:#fff;color:#1a1a1a;max-width:760px;margin:0 auto;padding:36px 32px;
+    font-family:Georgia,serif;line-height:1.55;box-shadow:0 0 24px rgba(0,0,0,.4);}
+  .docview img{max-width:100%;}
+  .imgview{display:flex;align-items:center;justify-content:center;min-height:100%;padding:12px;}
+  .imgview img{max-width:100%;max-height:100%;object-fit:contain;}
+  .pdfpage{display:block;margin:12px auto;box-shadow:0 2px 14px rgba(0,0,0,.5);background:#fff;}
+  .sheetwrap{padding:10px;}
+  .sheettabs{display:flex;gap:4px;overflow-x:auto;padding:6px 6px 10px;background:var(--surface);
+    border-bottom:1px solid var(--line);}
+  .sheettab{font-family:'IBM Plex Mono';font-size:11px;padding:6px 10px;border-radius:3px;
+    background:var(--surface-2);color:var(--text-dim);white-space:nowrap;cursor:pointer;border:1px solid var(--line);}
+  .sheettab.active{color:var(--accent);border-color:var(--accent-dim);}
+  table.sheet{border-collapse:collapse;width:100%;background:#fff;color:#1a1a1a;font-size:12.5px;}
+  table.sheet td,table.sheet th{border:1px solid #d8d8d8;padding:5px 8px;white-space:nowrap;}
+  table.sheet tr:first-child td{background:#eee;font-weight:600;}
+  mark{background:var(--accent);color:#181305;padding:0 1px;border-radius:1px;}
+
+  .loading{display:flex;align-items:center;justify-content:center;height:100%;
+    color:var(--text-dim);font-family:'IBM Plex Mono';font-size:13px;gap:10px;flex-direction:column;}
+  .spin{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);
+    border-top-color:var(--accent);animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--surface-2);border:1px solid var(--accent-dim);color:var(--text);
+    padding:10px 18px;border-radius:4px;font-family:'IBM Plex Mono';font-size:12px;
+    z-index:50;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  @media print{
+    header,#fab,#library,.vheader,.searchbar{display:none !important;}
+    #viewer{position:static !important;}
+    #viewBody{overflow:visible !important;height:auto !important;background:#fff !important;}
+    .txtview{color:#000;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand">
+      <span class="stamp">Índice · Archivo Personal</span>
+      <h1 id="headerTitle">Mis documentos</h1>
+    </div>
+    <button class="btn ghost" id="btnClear" title="Vaciar índice">Vaciar</button>
+  </header>
+
+  <div id="library">
+    <div class="empty" id="emptyState">
+      <div class="glyph">⌸</div>
+      <p>Todavía no agregaste archivos.<br>Tocá el botón + para abrir PDF, Word, Excel, TXT, CSV o imágenes.</p>
+    </div>
+    <div id="cardList"></div>
+  </div>
+
+  <input type="file" id="fileInput" multiple
+    accept=".pdf,.txt,.csv,.docx,.xlsx,.xls,.jpg,.jpeg,.png">
+  <button id="fab" title="Agregar archivo">+</button>
+
+  <!-- Viewer overlay -->
+  <div id="viewer">
+    <div class="vheader">
+      <button class="btn ghost" id="btnBack">‹ Índice</button>
+      <div class="vname" id="vname">—</div>
+      <button class="btn" id="btnShare">Compartir</button>
+      <button class="btn" id="btnPrint">Imprimir</button>
+      <div class="searchbar">
+        <span class="mono" style="color:var(--text-dim);font-size:13px;">🔎</span>
+        <input type="text" id="searchInput" placeholder="Buscar texto en el documento…">
+        <span class="count mono" id="searchCount"></span>
+        <span class="navbtn" id="searchPrev">▲</span>
+        <span class="navbtn" id="searchNext">▼</span>
+      </div>
+    </div>
+    <div id="viewBody"><div class="loading"><div class="spin"></div><span>Cargando…</span></div></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Librerías para leer cada formato -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
