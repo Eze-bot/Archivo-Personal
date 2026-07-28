@@ -482,16 +482,11 @@ $('#btnShare').addEventListener('click', async ()=>{
   }
 });
 
-/* ---------- Imprimir ---------- */
-const paperSelect = $('#paperSize');
-function applyPaperSize(){
-  const style = document.getElementById('pageSizeStyle');
-  style.textContent = `@page{size:${paperSelect.value};margin:12mm;}`;
-}
-paperSelect.addEventListener('change', applyPaperSize);
-
+/* ---------- Imprimir ----------
+   El tamaño de papel lo elige el propio diálogo de impresión de Android
+   (según la impresora/PDF que uses). El contenido se adapta automáticamente
+   al ancho de la hoja gracias a las reglas @media print de más arriba. */
 $('#btnPrint').addEventListener('click', ()=>{
   if(!current) return;
-  applyPaperSize();
   window.print();
 });

@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<style id="pageSizeStyle">@page{size:A4;margin:12mm;}</style>
+<style id="pageSizeStyle">@page{margin:12mm;}</style>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -111,10 +111,6 @@
 
   .actionsrow{display:flex;align-items:center;gap:6px;flex:1 1 100%;order:4;margin-top:6px;}
   .actionsrow #btnShare, .actionsrow #btnPrint{flex:1;justify-content:center;}
-  .papersel{
-    -webkit-appearance:none;appearance:none;background:var(--surface-2);
-    padding:9px 10px;font-size:11px;
-  }
 
   .searchbar{
     display:flex;align-items:center;gap:6px;background:var(--surface-2);
@@ -216,10 +212,6 @@
       </div>
       <div class="actionsrow">
         <button class="btn" id="btnShare">Compartir</button>
-        <select class="btn papersel" id="paperSize" title="Tamaño de papel">
-          <option value="A4">A4</option>
-          <option value="letter">Carta</option>
-        </select>
         <button class="btn" id="btnPrint">Imprimir</button>
       </div>
       <div class="searchbar">
