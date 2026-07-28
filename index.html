@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
+<style id="pageSizeStyle">@page{size:A4;margin:12mm;}</style>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -101,6 +102,20 @@
   }
   .vheader .vname{flex:1;min-width:120px;font-size:14px;font-weight:600;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;}
+  .zoomgroup{
+    display:flex;align-items:center;gap:6px;flex:1 1 100%;order:3;margin-top:6px;
+  }
+  .zbtn{padding:7px 12px;min-width:0;}
+  .zoomlvl{font-size:12px;color:var(--text-dim);min-width:42px;text-align:center;}
+  #btnZoomFit{margin-left:auto;}
+
+  .actionsrow{display:flex;align-items:center;gap:6px;flex:1 1 100%;order:4;margin-top:6px;}
+  .actionsrow #btnShare, .actionsrow #btnPrint{flex:1;justify-content:center;}
+  .papersel{
+    -webkit-appearance:none;appearance:none;background:var(--surface-2);
+    padding:9px 10px;font-size:11px;
+  }
+
   .searchbar{
     display:flex;align-items:center;gap:6px;background:var(--surface-2);
     border:1px solid var(--line);border-radius:3px;padding:5px 8px;flex:1 1 100%;
@@ -114,8 +129,10 @@
   .searchbar .navbtn{color:var(--text-dim);font-family:'IBM Plex Mono';font-size:13px;padding:2px 6px;cursor:pointer;}
   .searchbar .navbtn:active{color:var(--accent);}
 
-  #viewBody{flex:1;overflow:auto;background:#0f1113;-webkit-overflow-scrolling:touch;}
+  #viewBody{flex:1;overflow:auto;background:#0f1113;-webkit-overflow-scrolling:touch;
+    touch-action:pan-x pan-y;}
   #viewBody.pad{padding:16px;}
+  #docContent{transform-origin:top center;}
 
   .txtview{white-space:pre-wrap;word-wrap:break-word;font-family:'IBM Plex Mono';
     font-size:13px;line-height:1.6;padding:18px;color:var(--text);margin:0;}
@@ -154,7 +171,12 @@
     header,#fab,#library,.vheader,.searchbar{display:none !important;}
     #viewer{position:static !important;}
     #viewBody{overflow:visible !important;height:auto !important;background:#fff !important;}
+    #docContent{zoom:1 !important;transform:none !important;}
     .txtview{color:#000;}
+    .pdfpage, .docview, .imgview img, table.sheet{
+      width:100% !important;max-width:100% !important;height:auto !important;box-shadow:none !important;
+    }
+    .docview{padding:0 !important;margin:0 !important;}
   }
 </style>
 </head>
@@ -186,8 +208,20 @@
     <div class="vheader">
       <button class="btn ghost" id="btnBack">‹ Índice</button>
       <div class="vname" id="vname">—</div>
-      <button class="btn" id="btnShare">Compartir</button>
-      <button class="btn" id="btnPrint">Imprimir</button>
+      <div class="zoomgroup">
+        <button class="btn zbtn" id="btnZoomOut" title="Alejar">−</button>
+        <span class="zoomlvl mono" id="zoomLevel">100%</span>
+        <button class="btn zbtn" id="btnZoomIn" title="Acercar">+</button>
+        <button class="btn zbtn" id="btnZoomFit" title="Ajustar al ancho">Ajustar</button>
+      </div>
+      <div class="actionsrow">
+        <button class="btn" id="btnShare">Compartir</button>
+        <select class="btn papersel" id="paperSize" title="Tamaño de papel">
+          <option value="A4">A4</option>
+          <option value="letter">Carta</option>
+        </select>
+        <button class="btn" id="btnPrint">Imprimir</button>
+      </div>
       <div class="searchbar">
         <span class="mono" style="color:var(--text-dim);font-size:13px;">🔎</span>
         <input type="text" id="searchInput" placeholder="Buscar texto en el documento…">

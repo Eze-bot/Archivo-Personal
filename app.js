@@ -91,6 +91,7 @@ let files = [];              // metadatos + blob en memoria (id,name,ext,size,da
 let current = null;          // archivo abierto actualmente
 let searchMatches = [];      // elementos <mark> actuales
 let searchIndex = -1;
+let zoomScale = 1;           // nivel de zoom del documento abierto
 
 /* ---------- Render de la biblioteca ---------- */
 function renderLibrary(){
@@ -176,12 +177,69 @@ function closeViewer(){
   current = null;
 }
 
+/* ---------- Zoom ---------- */
+function setZoom(scale){
+  zoomScale = Math.min(4, Math.max(0.4, scale));
+  const content = document.getElementById('docContent');
+  if(content) content.style.zoom = zoomScale;
+  $('#zoomLevel').textContent = Math.round(zoomScale*100)+'%';
+}
+function resetZoom(){ zoomScale = 1; setZoom(1); }
+
+$('#btnZoomIn').addEventListener('click', ()=> setZoom(zoomScale + 0.2));
+$('#btnZoomOut').addEventListener('click', ()=> setZoom(zoomScale - 0.2));
+$('#btnZoomFit').addEventListener('click', ()=>{
+  const content = document.getElementById('docContent');
+  const body = $('#viewBody');
+  if(!content || !body) return;
+  const prevZoom = content.style.zoom;
+  content.style.zoom = 1; // medir tamaño natural
+  const naturalWidth = content.scrollWidth || content.offsetWidth;
+  content.style.zoom = prevZoom || 1;
+  if(!naturalWidth) return;
+  const available = body.clientWidth - 24; // margen visual
+  const fit = available / naturalWidth;
+  setZoom(fit > 0 ? fit : 1);
+});
+
+/* Pellizco (pinch) con dos dedos sobre el visor */
+(function enablePinchZoom(){
+  const body = $('#viewBody');
+  let pinching = false;
+  let startDist = 0;
+  let startZoom = 1;
+
+  function dist(touches){
+    const [a,b] = touches;
+    return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
+  }
+  body.addEventListener('touchstart', (e)=>{
+    if(e.touches.length===2){
+      pinching = true;
+      startDist = dist(e.touches);
+      startZoom = zoomScale;
+    }
+  }, {passive:true});
+  body.addEventListener('touchmove', (e)=>{
+    if(pinching && e.touches.length===2){
+      e.preventDefault();
+      const newDist = dist(e.touches);
+      const factor = newDist / (startDist || 1);
+      setZoom(startZoom * factor);
+    }
+  }, {passive:false});
+  body.addEventListener('touchend', (e)=>{
+    if(e.touches.length < 2) pinching = false;
+  });
+})();
+
 async function openViewer(f){
   current = f;
   $('#viewer').classList.add('open');
   $('#vname').textContent = f.name;
   $('#searchInput').value = '';
   searchMatches = []; searchIndex = -1; updateSearchCount();
+  resetZoom();
   const body = $('#viewBody');
   body.className = '';
   body.innerHTML = `<div class="loading"><div class="spin"></div><span>Cargando ${f.ext.toUpperCase()}…</span></div>`;
@@ -425,7 +483,15 @@ $('#btnShare').addEventListener('click', async ()=>{
 });
 
 /* ---------- Imprimir ---------- */
+const paperSelect = $('#paperSize');
+function applyPaperSize(){
+  const style = document.getElementById('pageSizeStyle');
+  style.textContent = `@page{size:${paperSelect.value};margin:12mm;}`;
+}
+paperSelect.addEventListener('change', applyPaperSize);
+
 $('#btnPrint').addEventListener('click', ()=>{
   if(!current) return;
+  applyPaperSize();
   window.print();
 });
