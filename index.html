@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14171a">
-<title>Visor Documentos</title>
+<title>Archivo Personal</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
@@ -43,6 +43,28 @@
   .brand .stamp{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.18em;
     color:var(--accent);text-transform:uppercase;margin-bottom:3px;}
   .brand h1{font-size:19px;margin:0;font-weight:600;letter-spacing:.01em;}
+  .brand .storageline{font-size:10px;color:var(--text-dim);margin-top:4px;}
+  .headerbtns{display:flex;gap:8px;flex-shrink:0;}
+
+  .toolbar{display:flex;gap:8px;margin-bottom:10px;}
+  .searchlib{
+    flex:1;display:flex;align-items:center;gap:6px;background:var(--surface);
+    border:1px solid var(--line);border-radius:4px;padding:8px 10px;
+  }
+  .searchlib input{
+    flex:1;background:transparent;border:none;outline:none;color:var(--text);
+    font-family:'IBM Plex Mono';font-size:13px;
+  }
+  .sortsel{-webkit-appearance:none;appearance:none;font-size:11px;padding:8px 10px;}
+
+  .tagchips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
+  .tagchips:empty{display:none;}
+  .chip{
+    font-family:'IBM Plex Mono';font-size:10.5px;padding:5px 10px;border-radius:12px;
+    background:var(--surface);border:1px solid var(--line);color:var(--text-dim);
+    white-space:nowrap;cursor:pointer;flex-shrink:0;
+  }
+  .chip.active{color:var(--accent);border-color:var(--accent-dim);background:var(--surface-2);}
 
   .btn{
     background:var(--surface-2);color:var(--text);border:1px solid var(--line);
@@ -81,7 +103,15 @@
   }
   .card .info{flex:1;min-width:0;}
   .card .name{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .card .meta{font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-dim);margin-top:3px;}
+  .card .meta{font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-dim);margin-top:3px;
+    display:flex;align-items:center;gap:8px;}
+  .card .tagpill{
+    font-family:'IBM Plex Mono';color:var(--accent);border:1px solid var(--accent-dim);
+    border-radius:10px;padding:1px 7px;font-size:9.5px;
+  }
+  .card .cardbtns{display:flex;gap:2px;flex-shrink:0;}
+  .card .iconbtn{color:var(--text-dim);font-family:'IBM Plex Mono';font-size:15px;padding:5px 6px;}
+  .card .iconbtn:active{color:var(--accent);}
   .card .del{color:var(--text-dim);font-family:'IBM Plex Mono';font-size:16px;padding:4px 6px;flex-shrink:0;}
   .card .del:active{color:var(--danger);}
 
@@ -163,10 +193,23 @@
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
 
+  /* Horizontal: la pantalla es baja, compactamos la barra del visor
+     para dejarle todo el alto posible al documento */
+  @media (orientation:landscape) and (max-height:480px){
+    .vheader{padding:6px 10px;gap:6px;}
+    .vheader .vname{font-size:12.5px;}
+    .zoomgroup{order:2;flex:0 0 auto;margin-top:0;}
+    .actionsrow{order:3;flex:0 0 auto;margin-top:0;}
+    .actionsrow #btnShare, .actionsrow #btnPrint{flex:none;padding:6px 10px;}
+    .searchbar{order:4;flex:1 1 auto;margin-top:0;min-width:160px;}
+    .zbtn{padding:5px 9px;}
+    .docview{padding:20px 24px;}
+  }
+
   @media print{
     html,body{height:auto !important;overflow:visible !important;}
     #app{height:auto !important;display:block !important;}
-    header,#fab,#library,.vheader,.searchbar{display:none !important;}
+    header,#fab,#library,.vheader,.searchbar,.toolbar,.tagchips{display:none !important;}
     #viewer{position:static !important;display:block !important;height:auto !important;inset:auto !important;}
     #viewBody{position:static !important;overflow:visible !important;height:auto !important;
       flex:none !important;background:#fff !important;}
@@ -187,11 +230,27 @@
     <div class="brand">
       <span class="stamp">Índice · Archivo Personal</span>
       <h1 id="headerTitle">Mis documentos</h1>
+      <span class="storageline mono" id="storageLine"></span>
     </div>
-    <button class="btn ghost" id="btnClear" title="Vaciar índice">Vaciar</button>
+    <div class="headerbtns">
+      <button class="btn ghost" id="btnExport" title="Exportar todo como .zip">Exportar</button>
+      <button class="btn ghost" id="btnClear" title="Vaciar índice">Vaciar</button>
+    </div>
   </header>
 
   <div id="library">
+    <div class="toolbar">
+      <div class="searchlib">
+        <span class="mono" style="color:var(--text-dim);font-size:13px;">🔎</span>
+        <input type="text" id="librarySearch" placeholder="Buscar por nombre…">
+      </div>
+      <select class="btn sortsel" id="sortSelect" title="Ordenar">
+        <option value="date">Más reciente</option>
+        <option value="name">Nombre A-Z</option>
+        <option value="type">Tipo</option>
+      </select>
+    </div>
+    <div class="tagchips" id="tagChips"></div>
     <div class="empty" id="emptyState">
       <div class="glyph">⌸</div>
       <p>Todavía no agregaste archivos.<br>Tocá el botón + para abrir PDF, Word, Excel, TXT, CSV, imágenes y más.</p>
@@ -237,6 +296,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -114,47 +114,156 @@ function toast(msg){
 }
 
 /* ---------- Estado ---------- */
-let files = [];              // metadatos + blob en memoria (id,name,ext,size,date,blob)
+let files = [];              // metadatos + blob en memoria (id,name,ext,size,date,blob,tag)
 let current = null;          // archivo abierto actualmente
 let searchMatches = [];      // elementos <mark> actuales
 let searchIndex = -1;
 let zoomScale = 1;           // nivel de zoom del documento abierto
+let libQuery = '';           // texto de búsqueda en la biblioteca
+let sortMode = 'date';       // 'date' | 'name' | 'type'
+let activeTag = null;        // etiqueta seleccionada para filtrar, o null
 
 /* ---------- Render de la biblioteca ---------- */
+function renderTagChips(){
+  const wrap = $('#tagChips');
+  const tags = Array.from(new Set(files.map(f=>f.tag).filter(Boolean))).sort();
+  if(tags.length===0){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = tags.map(t=>
+    `<div class="chip ${activeTag===t?'active':''}" data-tag="${t}">${t}</div>`
+  ).join('');
+  wrap.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const t = chip.dataset.tag;
+      activeTag = (activeTag===t) ? null : t;
+      renderLibrary();
+    });
+  });
+}
+
 function renderLibrary(){
   const list = $('#cardList');
   const empty = $('#emptyState');
   list.innerHTML = '';
-  if(files.length===0){ empty.style.display='flex'; return; }
+  renderTagChips();
+
+  let visible = files.slice();
+  if(libQuery.trim()){
+    const q = libQuery.trim().toLowerCase();
+    visible = visible.filter(f=> f.name.toLowerCase().includes(q));
+  }
+  if(activeTag){
+    visible = visible.filter(f=> f.tag === activeTag);
+  }
+  if(sortMode==='name'){
+    visible.sort((a,b)=> a.name.localeCompare(b.name,'es'));
+  } else if(sortMode==='type'){
+    visible.sort((a,b)=> tag(a.ext).localeCompare(tag(b.ext)) || a.name.localeCompare(b.name,'es'));
+  } else {
+    visible.sort((a,b)=> b.date-a.date);
+  }
+
+  if(files.length===0){
+    empty.style.display='flex';
+    $('#emptyState p').innerHTML = 'Todavía no agregaste archivos.<br>Tocá el botón + para abrir PDF, Word, Excel, TXT, CSV, imágenes y más.';
+    updateStorageLine();
+    return;
+  }
+  if(visible.length===0){
+    empty.style.display='flex';
+    $('#emptyState p').innerHTML = 'Ningún archivo coincide con la búsqueda o el filtro.';
+    updateStorageLine();
+    return;
+  }
   empty.style.display='none';
-  files
-    .slice()
-    .sort((a,b)=>b.date-a.date)
-    .forEach(f=>{
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <div class="tag mono">${tag(f.ext)}</div>
-        <div class="info">
-          <div class="name">${f.name}</div>
-          <div class="meta">${fmtSize(f.size)} · ${fmtDate(f.date)}</div>
+
+  visible.forEach(f=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="tag mono">${tag(f.ext)}</div>
+      <div class="info">
+        <div class="name">${f.name}</div>
+        <div class="meta">
+          <span>${fmtSize(f.size)} · ${fmtDate(f.date)}</span>
+          <span class="tagpill" data-action="tag" data-id="${f.id}">${f.tag ? f.tag : '+ etiqueta'}</span>
         </div>
-        <div class="del mono" data-id="${f.id}">✕</div>
-      `;
-      card.addEventListener('click',(e)=>{
-        if(e.target.closest('.del')) return;
-        openViewer(f);
-      });
-      card.querySelector('.del').addEventListener('click', async (e)=>{
+      </div>
+      <div class="cardbtns">
+        <div class="iconbtn mono" data-action="rename" data-id="${f.id}" title="Renombrar">✎</div>
+        <div class="del mono" data-action="delete" data-id="${f.id}" title="Eliminar">✕</div>
+      </div>
+    `;
+    card.addEventListener('click',(e)=>{
+      const action = e.target.closest('[data-action]');
+      if(action){
         e.stopPropagation();
-        await dbDelete(f.id);
-        files = files.filter(x=>x.id!==f.id);
-        renderLibrary();
-        toast('Archivo eliminado del índice');
-      });
-      list.appendChild(card);
+        if(action.dataset.action==='rename') renameFile(f);
+        else if(action.dataset.action==='tag') editTag(f);
+        else if(action.dataset.action==='delete') deleteFile(f);
+        return;
+      }
+      openViewer(f);
     });
+    list.appendChild(card);
+  });
+
+  updateStorageLine();
 }
+
+async function renameFile(f){
+  const current = f.name.replace(/\.[^.]+$/,'');
+  const input = prompt('Nuevo nombre para el archivo (sin la extensión):', current);
+  if(input===null) return;
+  const trimmed = input.trim();
+  if(!trimmed) return;
+  f.name = trimmed + '.' + f.ext;
+  await dbPut(f);
+  renderLibrary();
+  toast('Archivo renombrado');
+}
+
+async function editTag(f){
+  const input = prompt('Etiqueta para este archivo (dejar vacío para quitarla):', f.tag || '');
+  if(input===null) return;
+  f.tag = input.trim() || null;
+  await dbPut(f);
+  renderLibrary();
+}
+
+async function deleteFile(f){
+  if(!confirm(`¿Eliminar "${f.name}" del índice de este celular?`)) return;
+  await dbDelete(f.id);
+  files = files.filter(x=>x.id!==f.id);
+  renderLibrary();
+  toast('Archivo eliminado del índice');
+}
+
+/* ---------- Indicador de almacenamiento ---------- */
+async function updateStorageLine(){
+  const el = $('#storageLine');
+  if(!el) return;
+  const totalBytes = files.reduce((sum,f)=> sum + (f.size||0), 0);
+  let line = `${files.length} archivo(s) · ${fmtSize(totalBytes)}`;
+  if(navigator.storage && navigator.storage.estimate){
+    try{
+      const est = await navigator.storage.estimate();
+      if(est.quota){
+        line += ` de ${fmtSize(est.quota)} disponibles en este celular`;
+      }
+    }catch(e){ /* no disponible en este navegador, se omite */ }
+  }
+  el.textContent = line;
+}
+
+/* ---------- Búsqueda / orden / filtro en la biblioteca ---------- */
+$('#librarySearch').addEventListener('input', debounce((e)=>{
+  libQuery = e.target.value;
+  renderLibrary();
+}, 200));
+$('#sortSelect').addEventListener('change', (e)=>{
+  sortMode = e.target.value;
+  renderLibrary();
+});
 
 /* ---------- Carga inicial ---------- */
 (async function init(){
@@ -175,6 +284,7 @@ function renderLibrary(){
           ext: extOf(item.name),
           size: item.blob.size,
           date: Date.now(),
+          tag: null,
           blob: item.blob
         };
         await dbPut(rec);
@@ -202,6 +312,7 @@ $('#fileInput').addEventListener('change', async (e)=>{
       ext: extOf(file.name),
       size: file.size,
       date: Date.now(),
+      tag: null,
       blob: file
     };
     await dbPut(rec);
@@ -219,6 +330,38 @@ $('#btnClear').addEventListener('click', async ()=>{
   files = [];
   renderLibrary();
   toast('Índice vaciado');
+});
+
+/* ---------- Exportar / backup completo ---------- */
+$('#btnExport').addEventListener('click', async ()=>{
+  if(files.length===0){ toast('No hay archivos para exportar'); return; }
+  if(typeof JSZip === 'undefined'){ toast('No se pudo cargar el exportador'); return; }
+  toast('Preparando el respaldo…');
+  try{
+    const zip = new JSZip();
+    const usedNames = new Set();
+    files.forEach(f=>{
+      let name = f.name;
+      let i = 1;
+      while(usedNames.has(name)){
+        name = f.name.replace(/(\.[^.]+)?$/, `_(${i})$1`);
+        i++;
+      }
+      usedNames.add(name);
+      zip.file(name, f.blob);
+    });
+    const blob = await zip.generateAsync({type:'blob'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'archivo-personal-backup-' + new Date().toISOString().slice(0,10) + '.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    toast('Respaldo descargado');
+  }catch(err){
+    console.error(err);
+    toast('No se pudo generar el respaldo');
+  }
 });
 
 /* ---------- Visor ---------- */
@@ -246,12 +389,10 @@ function setZoom(scale){
 }
 function resetZoom(){ zoomScale = 1; setZoom(1); }
 
-$('#btnZoomIn').addEventListener('click', ()=> setZoom(zoomScale + 0.2));
-$('#btnZoomOut').addEventListener('click', ()=> setZoom(zoomScale - 0.2));
-$('#btnZoomFit').addEventListener('click', ()=>{
+function computeFitScale(){
   const content = document.getElementById('docContent');
   const body = $('#viewBody');
-  if(!content || !body) return;
+  if(!content || !body) return 1;
   const available = body.clientWidth - 24; // margen visual
   const img = content.querySelector('img.zoomable-img');
   let naturalWidth;
@@ -263,9 +404,21 @@ $('#btnZoomFit').addEventListener('click', ()=>{
     naturalWidth = content.scrollWidth || content.offsetWidth;
     content.style.zoom = prevZoom || 1;
   }
-  if(!naturalWidth) return;
+  if(!naturalWidth) return 1;
   const fit = available / naturalWidth;
-  setZoom(fit > 0 ? fit : 1);
+  return fit > 0 ? fit : 1;
+}
+function fitZoom(){ setZoom(computeFitScale()); }
+
+$('#btnZoomIn').addEventListener('click', ()=> setZoom(zoomScale + 0.2));
+$('#btnZoomOut').addEventListener('click', ()=> setZoom(zoomScale - 0.2));
+$('#btnZoomFit').addEventListener('click', fitZoom);
+
+/* El visor se reajusta solo al girar el celular (vertical ⇄ horizontal).
+   Ojo: no usamos el evento 'resize' genérico porque también se dispara
+   cuando aparece el teclado en pantalla, y ahí no queremos perder el zoom. */
+window.addEventListener('orientationchange', ()=>{
+  if(current) setTimeout(fitZoom, 350); // esperar a que el navegador termine de rotar
 });
 
 /* Pellizco (pinch) con dos dedos sobre el visor */
@@ -318,7 +471,8 @@ async function openViewer(f){
     else if(f.ext==='tsv') await renderTSV(f);
     else if(['txt','md','markdown','log','json','xml'].includes(f.ext)) await renderTXT(f);
     else if(['jpg','jpeg','png','gif','webp','bmp','svg'].includes(f.ext)) await renderImage(f);
-    else { body.innerHTML = `<div class="loading">Formato no compatible con el visor.</div>`; }
+    else { body.innerHTML = `<div class="loading">Formato no compatible con el visor.</div>`; return; }
+    fitZoom();
   }catch(err){
     console.error(err);
     body.innerHTML = `<div class="loading">No se pudo abrir el archivo.<br><span class="mono" style="font-size:11px">${(err&&err.message)||''}</span></div>`;

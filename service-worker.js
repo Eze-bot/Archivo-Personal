@@ -1,4 +1,4 @@
-const CACHE = 'archivo-personal-v5';
+const CACHE = 'archivo-personal-v6';
 const SHELL = ['./', './index.html', './app.js', './manifest.json', './icon.png'];
 
 /* ---- IndexedDB mínimo (mismo esquema que app.js) para dejar los archivos
